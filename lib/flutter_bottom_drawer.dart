@@ -1,6 +1,7 @@
 library flutter_bottom_drawer;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 class BottomDrawer extends StatefulWidget {
   /// Optional widget which does not scroll with the rest of the drawer.
@@ -53,8 +54,10 @@ class BottomDrawer extends StatefulWidget {
   /// Callback when user releases drag gesture
   final Function() onDragEnd;
 
-  /// Callback when snap animation ends. Called only if [snap] is set
-  final Function() onSnapEnd;
+  /// Called only if [snap] is set
+  /// Callback when snap animation ends.
+  /// Returns index from [stops] at which snap ended
+  final Function(int) onSnapEnd;
 
   /// Callback when drawer height changes
   /// Returns height in pixels and in percentage of available drawer space
@@ -117,6 +120,7 @@ class BottomDrawerState extends State<BottomDrawer> {
   bool dragging = false;
   bool firstTime = true;
   double lastHeight;
+  int endSnapStopIndex;
 
   @override
   void dispose() {
@@ -151,7 +155,7 @@ class BottomDrawerState extends State<BottomDrawer> {
           key: _containerKey,
           onEnd: () {
             if (!dragging && widget.snap && widget.onSnapEnd != null) {
-              widget.onSnapEnd();
+              widget.onSnapEnd(endSnapStopIndex);
             }
           },
           duration: (dragging || !widget.snap) ? Duration.zero : widget.snapAnimationDuration,
@@ -192,6 +196,7 @@ class BottomDrawerState extends State<BottomDrawer> {
                               padding: widget.listViewPadding,
                               physics: NeverScrollableScrollPhysics(),
                               children: widget.children,
+                              shrinkWrap: widget.shrink,
                             )
                           : ListView.builder(
                               controller: _scrollController,
@@ -199,6 +204,7 @@ class BottomDrawerState extends State<BottomDrawer> {
                               physics: NeverScrollableScrollPhysics(),
                               itemBuilder: widget.itemBuilder,
                               itemCount: widget.itemCount,
+                              shrinkWrap: widget.shrink,
                             ),
                     ),
                   ],
@@ -235,16 +241,16 @@ class BottomDrawerState extends State<BottomDrawer> {
   void dragEnd() {
     dragging = false;
     if (widget.snap == true) {
-      double endHeight;
+      double endStop;
       double lastStop = widget.stops.first;
       for (double stop in widget.stops) {
         if (lastStop == stop) continue;
         if (currentHeight <= stop * height) {
           if (currentHeight >= (stop - lastStop) / 2 * height + lastStop * height) {
-            endHeight = stop;
+            endStop = stop;
             break;
           } else {
-            endHeight = lastStop;
+            endStop = lastStop;
             break;
           }
         } else {
@@ -252,8 +258,14 @@ class BottomDrawerState extends State<BottomDrawer> {
         }
       }
 
+      if (currentHeight == maxDrawerHeight) {
+        widget.onSnapEnd(widget.stops.indexOf(endStop));
+      } else {
+        endSnapStopIndex = widget.stops.indexOf(endStop);
+      }
+
       setState(() {
-        currentHeight = height * endHeight;
+        currentHeight = height * endStop;
       });
     }
   }
