@@ -9,6 +9,14 @@ class BottomDrawer extends StatefulWidget {
   /// Scrollable elements
   final List<Widget> children;
 
+  /// Scrollable elements
+  /// Used in [BottomDrawer.builder]
+  final Widget Function(BuildContext, int index) itemBuilder;
+
+  /// Elements count
+  /// Used in [BottomDrawer.builder]
+  final int itemCount;
+
   /// Values needs to be between 0.0 - 1.0. They match percentage of available drawer height
   /// [stops] length needs to be >= 2
   /// Needs to be entered in ascending order
@@ -39,6 +47,19 @@ class BottomDrawer extends StatefulWidget {
   /// Drawer container shadow
   final BoxShadow shadow;
 
+  /// Callback when user starts drag gesture
+  final Function() onDragStart;
+
+  /// Callback when user releases drag gesture
+  final Function() onDragEnd;
+
+  /// Callback when snap animation ends. Called only if [snap] is set
+  final Function() onSnapEnd;
+
+  /// Callback when drawer height changes
+  /// Returns height in pixels and in percentage of available drawer space
+  final Function(double height, double heightPerc) onHeightChanged;
+
   const BottomDrawer({
     this.children = const [],
     this.listViewPadding = EdgeInsets.zero,
@@ -50,8 +71,36 @@ class BottomDrawer extends StatefulWidget {
     this.rebuildConstraints = false,
     this.snap = true,
     this.shadow,
+    this.onDragStart,
+    this.onDragEnd,
+    this.onSnapEnd,
+    this.onHeightChanged,
   })  : assert(initialStopIndex < stops.length, 'initialStopIndex cannot be greater than stops.length'),
-        assert(stops.length >= 2, 'minimum number of stops is 2');
+        assert(stops.length >= 2, 'minimum number of stops is 2'),
+        itemBuilder = null,
+        itemCount = null;
+
+  const BottomDrawer.builder({
+    @required this.itemBuilder,
+    this.itemCount,
+    this.listViewPadding = EdgeInsets.zero,
+    this.snapAnimationDuration = const Duration(milliseconds: 256),
+    this.stops = const [0.2, 1.0],
+    this.borderRadius,
+    this.header,
+    this.initialStopIndex = 0,
+    this.rebuildConstraints = false,
+    this.snap = true,
+    this.shadow,
+    this.onDragStart,
+    this.onDragEnd,
+    this.onSnapEnd,
+    this.onHeightChanged,
+  })  : assert(initialStopIndex < stops.length, 'initialStopIndex cannot be greater than stops.length'),
+        assert(stops.length >= 2, 'minimum number of stops is 2'),
+        assert(itemBuilder != null, 'itemBuilder cannot be null'),
+        assert(itemCount == null || itemCount >= 0, 'itemCount can either be null or positive number'),
+        children = null;
 
   @override
   State<StatefulWidget> createState() => BottomDrawerState();
@@ -67,6 +116,7 @@ class BottomDrawerState extends State<BottomDrawer> {
   double height;
   bool dragging = false;
   bool firstTime = true;
+  double lastHeight;
 
   @override
   void dispose() {
@@ -82,6 +132,7 @@ class BottomDrawerState extends State<BottomDrawer> {
         maxDrawerHeight = widget.stops.last * height;
         minDrawerHeight = widget.stops.first * height;
         currentHeight = height * widget.stops[widget.initialStopIndex];
+        lastHeight = currentHeight;
         firstTime = false;
       } else if (widget.rebuildConstraints) {
         height = constraints.maxHeight;
@@ -89,10 +140,20 @@ class BottomDrawerState extends State<BottomDrawer> {
         minDrawerHeight = widget.stops.first * height;
       }
 
+      if (lastHeight != currentHeight) {
+        lastHeight = currentHeight;
+        if (widget.onHeightChanged != null) widget.onHeightChanged(currentHeight, currentHeight / height);
+      }
+
       return Align(
         alignment: Alignment.bottomCenter,
         child: AnimatedContainer(
           key: _containerKey,
+          onEnd: () {
+            if (!dragging && widget.snap && widget.onSnapEnd != null) {
+              widget.onSnapEnd();
+            }
+          },
           duration: (dragging || !widget.snap) ? Duration.zero : widget.snapAnimationDuration,
           width: double.infinity,
           height: currentHeight,
@@ -101,6 +162,7 @@ class BottomDrawerState extends State<BottomDrawer> {
             width: double.infinity,
             child: GestureDetector(
               onVerticalDragStart: (details) {
+                if (widget.onDragStart != null) widget.onDragStart();
                 dragging = true;
                 final box = _containerKey.currentContext.findRenderObject() as RenderBox;
                 currentHeight = box.size.height;
@@ -109,6 +171,7 @@ class BottomDrawerState extends State<BottomDrawer> {
                 dragUpdate(update.primaryDelta);
               },
               onVerticalDragEnd: (details) {
+                if (widget.onDragEnd != null) widget.onDragEnd();
                 dragEnd();
               },
               child: Container(
@@ -123,12 +186,20 @@ class BottomDrawerState extends State<BottomDrawer> {
                   children: <Widget>[
                     if (widget.header != null) widget.header,
                     Expanded(
-                      child: ListView(
-                        controller: _scrollController,
-                        padding: widget.listViewPadding,
-                        physics: NeverScrollableScrollPhysics(),
-                        children: widget.children,
-                      ),
+                      child: widget.children != null
+                          ? ListView(
+                              controller: _scrollController,
+                              padding: widget.listViewPadding,
+                              physics: NeverScrollableScrollPhysics(),
+                              children: widget.children,
+                            )
+                          : ListView.builder(
+                              controller: _scrollController,
+                              padding: widget.listViewPadding,
+                              physics: NeverScrollableScrollPhysics(),
+                              itemBuilder: widget.itemBuilder,
+                              itemCount: widget.itemCount,
+                            ),
                     ),
                   ],
                 ),
