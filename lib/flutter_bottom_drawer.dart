@@ -196,7 +196,6 @@ class BottomDrawerState extends State<BottomDrawer> {
                               padding: widget.listViewPadding,
                               physics: NeverScrollableScrollPhysics(),
                               children: widget.children,
-                              shrinkWrap: widget.shrink,
                             )
                           : ListView.builder(
                               controller: _scrollController,
@@ -204,7 +203,6 @@ class BottomDrawerState extends State<BottomDrawer> {
                               physics: NeverScrollableScrollPhysics(),
                               itemBuilder: widget.itemBuilder,
                               itemCount: widget.itemCount,
-                              shrinkWrap: widget.shrink,
                             ),
                     ),
                   ],
