@@ -63,6 +63,9 @@ class BottomDrawer extends StatefulWidget {
   /// Returns height in pixels and in percentage of available drawer space
   final Function(double height, double heightPerc) onHeightChanged;
 
+  /// ScrollController for embedded ListView
+  final ScrollController scrollController;
+
   const BottomDrawer({
     this.children = const [],
     this.listViewPadding = EdgeInsets.zero,
@@ -78,6 +81,7 @@ class BottomDrawer extends StatefulWidget {
     this.onDragEnd,
     this.onSnapEnd,
     this.onHeightChanged,
+    this.scrollController,
   })  : assert(initialStopIndex < stops.length, 'initialStopIndex cannot be greater than stops.length'),
         assert(stops.length >= 2, 'minimum number of stops is 2'),
         itemBuilder = null,
@@ -99,6 +103,7 @@ class BottomDrawer extends StatefulWidget {
     this.onDragEnd,
     this.onSnapEnd,
     this.onHeightChanged,
+    this.scrollController,
   })  : assert(initialStopIndex < stops.length, 'initialStopIndex cannot be greater than stops.length'),
         assert(stops.length >= 2, 'minimum number of stops is 2'),
         assert(itemBuilder != null, 'itemBuilder cannot be null'),
@@ -110,7 +115,7 @@ class BottomDrawer extends StatefulWidget {
 }
 
 class BottomDrawerState extends State<BottomDrawer> {
-  ScrollController _scrollController = ScrollController();
+  ScrollController _scrollController;
   final GlobalKey _containerKey = GlobalKey();
 
   double currentHeight;
@@ -123,8 +128,17 @@ class BottomDrawerState extends State<BottomDrawer> {
   int endSnapStopIndex;
 
   @override
+  void initState() {
+    super.initState();
+    _scrollController = widget.scrollController ?? ScrollController();
+  }
+
+  @override
   void dispose() {
-    _scrollController.dispose();
+    if (widget.scrollController == null) {
+      // only dispose if controller is created within this widget
+      _scrollController.dispose();
+    }
     super.dispose();
   }
 
