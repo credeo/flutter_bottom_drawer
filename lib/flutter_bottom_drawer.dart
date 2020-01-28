@@ -1,5 +1,6 @@
 library flutter_bottom_drawer;
 
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
@@ -111,11 +112,12 @@ class BottomDrawer extends StatefulWidget {
         children = null;
 
   @override
-  State<StatefulWidget> createState() => BottomDrawerState();
+  State<StatefulWidget> createState() => _BottomDrawerState();
 }
 
-class BottomDrawerState extends State<BottomDrawer> {
+class _BottomDrawerState extends State<BottomDrawer> with SingleTickerProviderStateMixin {
   ScrollController _scrollController;
+
   final GlobalKey _containerKey = GlobalKey();
 
   double currentHeight;
@@ -127,10 +129,18 @@ class BottomDrawerState extends State<BottomDrawer> {
   double lastHeight;
   int endSnapStopIndex;
 
+  double currentScrollOffset = 0.0;
+  double startScrollVelocity;
+  double scrollStartOffset = 0;
+
+  AnimationController _animationController;
+  Animation<double> _animation;
+
   @override
   void initState() {
     super.initState();
     _scrollController = widget.scrollController ?? ScrollController();
+    _animationController = AnimationController(vsync: this);
   }
 
   @override
@@ -139,6 +149,7 @@ class BottomDrawerState extends State<BottomDrawer> {
       // only dispose if controller is created within this widget
       _scrollController.dispose();
     }
+    _animationController?.dispose();
     super.dispose();
   }
 
@@ -180,6 +191,7 @@ class BottomDrawerState extends State<BottomDrawer> {
             width: double.infinity,
             child: GestureDetector(
               onVerticalDragStart: (details) {
+                _animationController.stop();
                 if (widget.onDragStart != null) widget.onDragStart();
                 dragging = true;
                 final box = _containerKey.currentContext.findRenderObject() as RenderBox;
@@ -190,7 +202,7 @@ class BottomDrawerState extends State<BottomDrawer> {
               },
               onVerticalDragEnd: (details) {
                 if (widget.onDragEnd != null) widget.onDragEnd();
-                dragEnd();
+                dragEnd(details);
               },
               child: Container(
                 decoration: BoxDecoration(
@@ -250,7 +262,7 @@ class BottomDrawerState extends State<BottomDrawer> {
     }
   }
 
-  void dragEnd() {
+  void dragEnd(DragEndDetails details) {
     dragging = false;
     if (widget.snap == true) {
       double endStop;
@@ -271,14 +283,17 @@ class BottomDrawerState extends State<BottomDrawer> {
       }
 
       if (currentHeight == maxDrawerHeight) {
+        if (details.primaryVelocity != 0) {
+          startScrollAnimation(details);
+        }
+
         widget.onSnapEnd(widget.stops.indexOf(endStop));
       } else {
         endSnapStopIndex = widget.stops.indexOf(endStop);
+        setState(() {
+          currentHeight = height * endStop;
+        });
       }
-
-      setState(() {
-        currentHeight = height * endStop;
-      });
     }
   }
 
@@ -288,5 +303,55 @@ class BottomDrawerState extends State<BottomDrawer> {
 
   bool isAtMin() {
     return currentHeight <= minDrawerHeight;
+  }
+
+  double calculateScrollDistance(double velocity) {
+    var d = 0.99;
+    var dCoeff = 1000.0 * (d - 1) / d;
+    var destination = _scrollController.offset + velocity / dCoeff;
+    return destination;
+  }
+
+  // returns time in seconds
+  double calculateScrollDuration(double velocity) {
+    var d = 0.99;
+    var dCoeff = 1000.0 * (d - 1) / d;
+    var threshold = 0.1;
+    var timeInterval = (log(-dCoeff * threshold / velocity.abs()) / dCoeff);
+    return timeInterval;
+  }
+
+  // atTime is in milliseconds
+  double calculateCurrentScrollValue(double atTime, double startValue, double startVelocity) {
+    var d = 0.99;
+    var dCoeff = 1000.0 * (d - 1) / d;
+    return startValue + (pow(d, atTime) - 1) / dCoeff * startVelocity;
+  }
+
+  // triggers scroll animation based on drag velocity after drag end event
+  void startScrollAnimation(DragEndDetails details) {
+    double duration = calculateScrollDuration(details.primaryVelocity);
+    int durationInMilliseconds = (duration * 1000).round();
+    startScrollVelocity = details.primaryVelocity;
+    scrollStartOffset = _scrollController.offset;
+
+    _animationController.reset();
+    _animationController.duration = Duration(milliseconds: durationInMilliseconds);
+    _animation?.removeListener(listenToAnimation);
+    _animation = Tween<double>(
+      begin: 0,
+      end: durationInMilliseconds.toDouble(),
+    ).animate(_animationController);
+    _animationController.forward();
+    _animation.addListener(listenToAnimation);
+  }
+
+  void listenToAnimation() {
+    double currentOffset = calculateCurrentScrollValue(_animation.value, scrollStartOffset, -startScrollVelocity);
+    if (_scrollController.position.outOfRange) {
+      _animationController.stop();
+      return;
+    }
+    _scrollController.jumpTo(currentOffset);
   }
 }
