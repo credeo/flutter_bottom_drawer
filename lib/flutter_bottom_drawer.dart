@@ -282,11 +282,12 @@ class _BottomDrawerState extends State<BottomDrawer> with SingleTickerProviderSt
         }
       }
 
-      if (currentHeight == maxDrawerHeight) {
+      if (isAtMax()) {
         if (details.primaryVelocity != 0) {
           startScrollAnimation(details);
         }
-
+        widget.onSnapEnd(widget.stops.indexOf(endStop));
+      } else if (isAtMin()) {
         widget.onSnapEnd(widget.stops.indexOf(endStop));
       } else {
         endSnapStopIndex = widget.stops.indexOf(endStop);
