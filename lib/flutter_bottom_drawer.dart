@@ -68,6 +68,7 @@ class BottomDrawer extends StatefulWidget {
   final ScrollController scrollController;
 
   const BottomDrawer({
+    Key key,
     this.children = const [],
     this.listViewPadding = EdgeInsets.zero,
     this.snapAnimationDuration = const Duration(milliseconds: 256),
@@ -86,9 +87,10 @@ class BottomDrawer extends StatefulWidget {
   })  : assert(initialStopIndex < stops.length, 'initialStopIndex cannot be greater than stops.length'),
         assert(stops.length >= 2, 'minimum number of stops is 2'),
         itemBuilder = null,
-        itemCount = null;
+        itemCount = null,super(key:key);
 
   const BottomDrawer.builder({
+    Key key,
     @required this.itemBuilder,
     this.itemCount,
     this.listViewPadding = EdgeInsets.zero,
@@ -109,13 +111,13 @@ class BottomDrawer extends StatefulWidget {
         assert(stops.length >= 2, 'minimum number of stops is 2'),
         assert(itemBuilder != null, 'itemBuilder cannot be null'),
         assert(itemCount == null || itemCount >= 0, 'itemCount can either be null or positive number'),
-        children = null;
+        children = null,super(key:key);
 
   @override
-  State<StatefulWidget> createState() => _BottomDrawerState();
+  State<StatefulWidget> createState() => BottomDrawerState();
 }
 
-class _BottomDrawerState extends State<BottomDrawer> with SingleTickerProviderStateMixin {
+class BottomDrawerState extends State<BottomDrawer> with SingleTickerProviderStateMixin {
   ScrollController _scrollController;
 
   final GlobalKey _containerKey = GlobalKey();
@@ -141,6 +143,15 @@ class _BottomDrawerState extends State<BottomDrawer> with SingleTickerProviderSt
     super.initState();
     _scrollController = widget.scrollController ?? ScrollController();
     _animationController = AnimationController(vsync: this);
+    
+    /// I don't want children to pull up indefinitely
+    _scrollController.addListener((){
+      double elasticityOffset=200,
+      double scrollReboundDistance=_scrollController.position.maxScrollExtent+elasticityOffset;
+      if(_scrollController.offset>=scrollReboundDistance){
+        _scrollController.jumpTo(scrollReboundDistance);
+      }
+    });
   }
 
   @override
@@ -354,5 +365,33 @@ class _BottomDrawerState extends State<BottomDrawer> with SingleTickerProviderSt
       return;
     }
     _scrollController.jumpTo(currentOffset);
+  }
+
+  /// I want to  external open Drawer; 
+  /// e.g
+  /// ```
+  /// final _bottomDrawerGlobalKey = new GlobalKey<BottomDrawerState>();
+  /// 
+  /// BottomDrawer(key:_bottomDrawerGlobalKey,...),
+  /// 
+  ///   //openDrawer,
+  /// _bottomDrawerGlobalKey.currentState.openDrawer();
+  /// 
+  ///   //closeDrawer,
+  /// _bottomDrawerGlobalKey.currentState.closeDrawer();
+  ///
+  /// ```
+  /// 
+  /// 
+  void openDrawer(){
+    setState(() {
+       currentHeight = maxDrawerHeight;
+    });
+  }
+
+  void closeDrawer(){
+    setState(() {
+       currentHeight = minDrawerHeight;
+    });
   }
 }
