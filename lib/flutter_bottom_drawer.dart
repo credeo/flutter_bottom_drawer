@@ -4,6 +4,42 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
+enum _BottomDrawerControllerActionType { collapse, expand }
+
+class _BottomDrawerControllerAction {
+  final Duration duration;
+  final Curve curve;
+  final updateScrollController;
+  final _BottomDrawerControllerActionType type;
+
+  const _BottomDrawerControllerAction(
+    this.type, {
+    this.duration = Duration.zero,
+    this.curve = Curves.linear,
+    this.updateScrollController = true,
+  });
+}
+
+class BottomDrawerController extends ChangeNotifier {
+  _BottomDrawerControllerAction _action;
+  _BottomDrawerControllerAction getLastAction() => _action;
+
+  void collapse({Duration duration = Duration.zero, Curve curve = Curves.linear, bool updateScrollController = true}) {
+    _action = _BottomDrawerControllerAction(
+      _BottomDrawerControllerActionType.collapse,
+      duration: duration,
+      curve: curve,
+      updateScrollController: updateScrollController,
+    );
+    notifyListeners();
+  }
+
+  void expand({Duration duration = Duration.zero, Curve curve = Curves.linear}) {
+    _action = _BottomDrawerControllerAction(_BottomDrawerControllerActionType.expand, duration: duration, curve: curve);
+    notifyListeners();
+  }
+}
+
 class BottomDrawer extends StatefulWidget {
   /// Optional widget which does not scroll with the rest of the drawer.
   final Widget header;
@@ -67,6 +103,9 @@ class BottomDrawer extends StatefulWidget {
   /// ScrollController for embedded ListView
   final ScrollController scrollController;
 
+  ///Drawer controller
+  final BottomDrawerController controller;
+
   const BottomDrawer({
     this.children = const [],
     this.listViewPadding = EdgeInsets.zero,
@@ -83,6 +122,7 @@ class BottomDrawer extends StatefulWidget {
     this.onSnapEnd,
     this.onHeightChanged,
     this.scrollController,
+    this.controller,
   })  : assert(initialStopIndex < stops.length, 'initialStopIndex cannot be greater than stops.length'),
         assert(stops.length >= 2, 'minimum number of stops is 2'),
         itemBuilder = null,
@@ -105,6 +145,7 @@ class BottomDrawer extends StatefulWidget {
     this.onSnapEnd,
     this.onHeightChanged,
     this.scrollController,
+    this.controller,
   })  : assert(initialStopIndex < stops.length, 'initialStopIndex cannot be greater than stops.length'),
         assert(stops.length >= 2, 'minimum number of stops is 2'),
         assert(itemBuilder != null, 'itemBuilder cannot be null'),
@@ -128,6 +169,9 @@ class _BottomDrawerState extends State<BottomDrawer> with SingleTickerProviderSt
   bool firstTime = true;
   double lastHeight;
   int endSnapStopIndex;
+  bool controllerActionInProgress = false;
+  Duration controllerActionDuration;
+  Curve controllerActionCurve;
 
   double currentScrollOffset = 0.0;
   double startScrollVelocity;
@@ -141,6 +185,9 @@ class _BottomDrawerState extends State<BottomDrawer> with SingleTickerProviderSt
     super.initState();
     _scrollController = widget.scrollController ?? ScrollController();
     _animationController = AnimationController(vsync: this);
+    if (widget.controller != null) {
+      widget.controller.addListener(listenToDrawerController);
+    }
   }
 
   @override
@@ -149,6 +196,10 @@ class _BottomDrawerState extends State<BottomDrawer> with SingleTickerProviderSt
       // only dispose if controller is created within this widget
       _scrollController.dispose();
     }
+
+    // only remove listener, parent is responsible for disposing
+    widget.controller?.removeListener(listenToDrawerController);
+
     _animationController?.dispose();
     super.dispose();
   }
@@ -179,11 +230,17 @@ class _BottomDrawerState extends State<BottomDrawer> with SingleTickerProviderSt
         child: AnimatedContainer(
           key: _containerKey,
           onEnd: () {
+            if (controllerActionInProgress) {
+              controllerActionInProgress = false;
+            }
             if (!dragging && widget.snap && widget.onSnapEnd != null) {
               widget.onSnapEnd(endSnapStopIndex);
             }
           },
-          duration: (dragging || !widget.snap) ? Duration.zero : widget.snapAnimationDuration,
+          curve: controllerActionInProgress ? controllerActionCurve : Curves.linear,
+          duration: controllerActionInProgress
+              ? controllerActionDuration
+              : (dragging || !widget.snap) ? Duration.zero : widget.snapAnimationDuration,
           width: double.infinity,
           height: currentHeight,
           child: SizedBox(
@@ -191,6 +248,7 @@ class _BottomDrawerState extends State<BottomDrawer> with SingleTickerProviderSt
             width: double.infinity,
             child: GestureDetector(
               onVerticalDragStart: (details) {
+                controllerActionInProgress = false;
                 _animationController.stop();
                 if (widget.onDragStart != null) widget.onDragStart();
                 dragging = true;
@@ -241,6 +299,29 @@ class _BottomDrawerState extends State<BottomDrawer> with SingleTickerProviderSt
     });
   }
 
+  void listenToDrawerController() async {
+    controllerActionInProgress = true;
+    _BottomDrawerControllerAction lastAction = widget.controller.getLastAction();
+    controllerActionCurve = lastAction.curve;
+    controllerActionDuration = lastAction.duration;
+    switch (lastAction.type) {
+      case _BottomDrawerControllerActionType.collapse:
+        if (lastAction.updateScrollController) {
+          _scrollController.animateTo(0,
+              duration: Duration(milliseconds: (controllerActionDuration.inMilliseconds / 2).round()), curve: Curves.linear);
+        }
+        setState(() {
+          currentHeight = height * widget.stops.first;
+        });
+        break;
+      case _BottomDrawerControllerActionType.expand:
+        setState(() {
+          currentHeight = height * widget.stops.last;
+        });
+        break;
+    }
+  }
+
   void dragUpdate(double delta) {
     if (delta < 0 && isAtMax()) {
       _scrollController.jumpTo(
@@ -286,9 +367,9 @@ class _BottomDrawerState extends State<BottomDrawer> with SingleTickerProviderSt
         if (details.primaryVelocity != 0) {
           startScrollAnimation(details);
         }
-        widget.onSnapEnd(widget.stops.indexOf(endStop));
+        if (widget.onSnapEnd != null) widget.onSnapEnd(widget.stops.indexOf(endStop));
       } else if (isAtMin()) {
-        widget.onSnapEnd(widget.stops.indexOf(endStop));
+        if (widget.onSnapEnd != null) widget.onSnapEnd(widget.stops.indexOf(endStop));
       } else {
         endSnapStopIndex = widget.stops.indexOf(endStop);
         setState(() {
