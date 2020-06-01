@@ -24,6 +24,8 @@ class BottomDrawerController extends ChangeNotifier {
   _BottomDrawerControllerAction _action;
   _BottomDrawerControllerAction getLastAction() => _action;
 
+  /// collapse drawer
+  /// updateScrollController flag sets if scroll controller should scroll to beginning while collapsing the drawer
   void collapse({Duration duration = Duration.zero, Curve curve = Curves.linear, bool updateScrollController = true}) {
     _action = _BottomDrawerControllerAction(
       _BottomDrawerControllerActionType.collapse,
@@ -34,6 +36,7 @@ class BottomDrawerController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// expand drawer
   void expand({Duration duration = Duration.zero, Curve curve = Curves.linear}) {
     _action = _BottomDrawerControllerAction(_BottomDrawerControllerActionType.expand, duration: duration, curve: curve);
     notifyListeners();
