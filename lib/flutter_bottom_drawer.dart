@@ -109,6 +109,9 @@ class BottomDrawer extends StatefulWidget {
   ///Drawer controller
   final BottomDrawerController controller;
 
+  ///Background color
+  final Color backgroundColor;
+
   const BottomDrawer({
     this.children = const [],
     this.listViewPadding = EdgeInsets.zero,
@@ -126,6 +129,7 @@ class BottomDrawer extends StatefulWidget {
     this.onHeightChanged,
     this.scrollController,
     this.controller,
+    this.backgroundColor = Colors.white,
   })  : assert(initialStopIndex < stops.length, 'initialStopIndex cannot be greater than stops.length'),
         assert(stops.length >= 2, 'minimum number of stops is 2'),
         itemBuilder = null,
@@ -149,6 +153,7 @@ class BottomDrawer extends StatefulWidget {
     this.onHeightChanged,
     this.scrollController,
     this.controller,
+    this.backgroundColor = Colors.white,
   })  : assert(initialStopIndex < stops.length, 'initialStopIndex cannot be greater than stops.length'),
         assert(stops.length >= 2, 'minimum number of stops is 2'),
         assert(itemBuilder != null, 'itemBuilder cannot be null'),
@@ -267,7 +272,7 @@ class _BottomDrawerState extends State<BottomDrawer> with SingleTickerProviderSt
               },
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: widget.backgroundColor,
                   boxShadow: [
                     if (widget.shadow != null) widget.shadow,
                   ],
