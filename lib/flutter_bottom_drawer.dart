@@ -106,11 +106,15 @@ class BottomDrawer extends StatefulWidget {
   /// ScrollController for embedded ListView
   final ScrollController scrollController;
 
-  ///Drawer controller
+  /// Drawer controller
   final BottomDrawerController controller;
 
-  ///Background color
+  /// Background color
   final Color backgroundColor;
+
+  /// Defines distance from upper part of the drawer which user can hold and drag to force drawer resize
+  /// null means user cannot force resize drawer
+  final double forceResizeStartDistance;
 
   const BottomDrawer({
     this.children = const [],
@@ -130,6 +134,7 @@ class BottomDrawer extends StatefulWidget {
     this.scrollController,
     this.controller,
     this.backgroundColor = Colors.white,
+    this.forceResizeStartDistance,
   })  : assert(initialStopIndex < stops.length, 'initialStopIndex cannot be greater than stops.length'),
         assert(stops.length >= 2, 'minimum number of stops is 2'),
         itemBuilder = null,
@@ -154,6 +159,7 @@ class BottomDrawer extends StatefulWidget {
     this.scrollController,
     this.controller,
     this.backgroundColor = Colors.white,
+    this.forceResizeStartDistance,
   })  : assert(initialStopIndex < stops.length, 'initialStopIndex cannot be greater than stops.length'),
         assert(stops.length >= 2, 'minimum number of stops is 2'),
         assert(itemBuilder != null, 'itemBuilder cannot be null'),
@@ -167,7 +173,7 @@ class BottomDrawer extends StatefulWidget {
 class _BottomDrawerState extends State<BottomDrawer> with SingleTickerProviderStateMixin {
   ScrollController _scrollController;
 
-  final GlobalKey _containerKey = GlobalKey();
+  static final GlobalKey<_BottomDrawerState> _containerKey = GlobalKey<_BottomDrawerState>();
 
   double currentHeight;
   double maxDrawerHeight;
@@ -180,6 +186,7 @@ class _BottomDrawerState extends State<BottomDrawer> with SingleTickerProviderSt
   bool controllerActionInProgress = false;
   Duration controllerActionDuration;
   Curve controllerActionCurve;
+  bool _bottomDrawerDraggingInProgress = false;
 
   double currentScrollOffset = 0.0;
   double startScrollVelocity;
@@ -248,7 +255,9 @@ class _BottomDrawerState extends State<BottomDrawer> with SingleTickerProviderSt
           curve: controllerActionInProgress ? controllerActionCurve : Curves.linear,
           duration: controllerActionInProgress
               ? controllerActionDuration
-              : (dragging || !widget.snap) ? Duration.zero : widget.snapAnimationDuration,
+              : (dragging || !widget.snap)
+                  ? Duration.zero
+                  : widget.snapAnimationDuration,
           width: double.infinity,
           height: currentHeight,
           child: SizedBox(
@@ -262,6 +271,11 @@ class _BottomDrawerState extends State<BottomDrawer> with SingleTickerProviderSt
                 dragging = true;
                 final box = _containerKey.currentContext.findRenderObject() as RenderBox;
                 currentHeight = box.size.height;
+                if (widget.forceResizeStartDistance != null && details.localPosition.dy <= widget.forceResizeStartDistance) {
+                  _bottomDrawerDraggingInProgress = true;
+                } else {
+                  _bottomDrawerDraggingInProgress = false;
+                }
               },
               onVerticalDragUpdate: (update) {
                 dragUpdate(update.primaryDelta);
@@ -331,15 +345,23 @@ class _BottomDrawerState extends State<BottomDrawer> with SingleTickerProviderSt
   }
 
   void dragUpdate(double delta) {
-    if (delta < 0 && isAtMax()) {
-      _scrollController.jumpTo(
-        _scrollController.position.pixels - delta,
-      );
-    } else if (delta > 0 && isAtMax() && _scrollController.position.pixels > 0) {
-      _scrollController.jumpTo(
-        _scrollController.position.pixels - delta,
-      );
+    bool moveDrawer = false;
+    if (_bottomDrawerDraggingInProgress) {
+      moveDrawer = true;
     } else {
+      if (delta < 0 && isAtMax()) {
+        _scrollController.jumpTo(
+          _scrollController.position.pixels - delta,
+        );
+      } else if (delta > 0 && isAtMax() && _scrollController.position.pixels > 0) {
+        _scrollController.jumpTo(
+          _scrollController.position.pixels - delta,
+        );
+      } else {
+        moveDrawer = true;
+      }
+    }
+    if (moveDrawer) {
       currentHeight -= delta;
       setState(() {
         if (currentHeight < minDrawerHeight) {
@@ -371,7 +393,7 @@ class _BottomDrawerState extends State<BottomDrawer> with SingleTickerProviderSt
         }
       }
 
-      if (isAtMax()) {
+      if (!_bottomDrawerDraggingInProgress && isAtMax()) {
         if (details.primaryVelocity != 0) {
           startScrollAnimation(details);
         }
