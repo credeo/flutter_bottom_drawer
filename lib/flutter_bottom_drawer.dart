@@ -173,7 +173,7 @@ class BottomDrawer extends StatefulWidget {
 class _BottomDrawerState extends State<BottomDrawer> with SingleTickerProviderStateMixin {
   ScrollController _scrollController;
 
-  static final GlobalKey<_BottomDrawerState> _containerKey = GlobalKey<_BottomDrawerState>();
+  final GlobalKey<_BottomDrawerState> _containerKey = GlobalKey<_BottomDrawerState>();
 
   double currentHeight;
   double maxDrawerHeight;
