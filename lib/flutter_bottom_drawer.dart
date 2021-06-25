@@ -47,7 +47,7 @@ class BottomDrawerController extends ChangeNotifier {
   /// scroll drawer list
   void scroll({Duration duration = Duration.zero, Curve curve = Curves.linear, double position}) {
     _action = _BottomDrawerControllerAction(
-      _BottomDrawerControllerActionType.expand,
+      _BottomDrawerControllerActionType.scroll,
       duration: duration,
       curve: curve,
       position: position,
