@@ -4,11 +4,12 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
-enum _BottomDrawerControllerActionType { collapse, expand }
+enum _BottomDrawerControllerActionType { collapse, expand, scroll }
 
 class _BottomDrawerControllerAction {
   final Duration duration;
   final Curve curve;
+  final double position;
   final updateScrollController;
   final _BottomDrawerControllerActionType type;
 
@@ -16,6 +17,7 @@ class _BottomDrawerControllerAction {
     this.type, {
     this.duration = Duration.zero,
     this.curve = Curves.linear,
+    this.position = 0,
     this.updateScrollController = true,
   });
 }
@@ -39,6 +41,17 @@ class BottomDrawerController extends ChangeNotifier {
   /// expand drawer
   void expand({Duration duration = Duration.zero, Curve curve = Curves.linear}) {
     _action = _BottomDrawerControllerAction(_BottomDrawerControllerActionType.expand, duration: duration, curve: curve);
+    notifyListeners();
+  }
+
+  /// scroll drawer list
+  void scroll({Duration duration = Duration.zero, Curve curve = Curves.linear, double position}) {
+    _action = _BottomDrawerControllerAction(
+      _BottomDrawerControllerActionType.expand,
+      duration: duration,
+      curve: curve,
+      position: position,
+    );
     notifyListeners();
   }
 }
@@ -329,8 +342,11 @@ class _BottomDrawerState extends State<BottomDrawer> with SingleTickerProviderSt
     switch (lastAction.type) {
       case _BottomDrawerControllerActionType.collapse:
         if (lastAction.updateScrollController) {
-          _scrollController.animateTo(0,
-              duration: Duration(milliseconds: (controllerActionDuration.inMilliseconds / 2).round()), curve: Curves.linear);
+          _scrollController.animateTo(
+            0,
+            duration: Duration(milliseconds: (controllerActionDuration.inMilliseconds / 2).round()),
+            curve: Curves.linear,
+          );
         }
         setState(() {
           currentHeight = height * widget.stops.first;
@@ -340,6 +356,13 @@ class _BottomDrawerState extends State<BottomDrawer> with SingleTickerProviderSt
         setState(() {
           currentHeight = height * widget.stops.last;
         });
+        break;
+      case _BottomDrawerControllerActionType.scroll:
+        _scrollController.animateTo(
+          lastAction.position,
+          duration: Duration(milliseconds: (controllerActionDuration.inMilliseconds / 2).round()),
+          curve: Curves.linear,
+        );
         break;
     }
   }

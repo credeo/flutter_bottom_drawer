@@ -1,11 +1,11 @@
 name: flutter_bottom_drawer
 description: Customizable Draggable Bottom Drawer
-version: 1.0.7
+version: 1.0.10
 author:
 homepage:
 
 environment:
-  sdk: ">=2.3.0 <3.0.0"
+  sdk: ">=2.8.0 <3.0.0"
 
 dependencies:
   flutter:
