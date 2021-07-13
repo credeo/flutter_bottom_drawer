@@ -23,7 +23,7 @@ class _BottomDrawerControllerAction {
 }
 
 class BottomDrawerController extends ChangeNotifier {
-  _BottomDrawerControllerAction _action;
+  late _BottomDrawerControllerAction _action;
   _BottomDrawerControllerAction getLastAction() => _action;
 
   /// collapse drawer
@@ -45,7 +45,7 @@ class BottomDrawerController extends ChangeNotifier {
   }
 
   /// scroll drawer list
-  void scroll({Duration duration = Duration.zero, Curve curve = Curves.linear, double position}) {
+  void scroll({Duration duration = Duration.zero, Curve curve = Curves.linear, double position = 0}) {
     _action = _BottomDrawerControllerAction(
       _BottomDrawerControllerActionType.scroll,
       duration: duration,
@@ -58,18 +58,18 @@ class BottomDrawerController extends ChangeNotifier {
 
 class BottomDrawer extends StatefulWidget {
   /// Optional widget which does not scroll with the rest of the drawer.
-  final Widget header;
+  final Widget? header;
 
   /// Scrollable elements
-  final List<Widget> children;
+  final List<Widget>? children;
 
   /// Scrollable elements
   /// Used in [BottomDrawer.builder]
-  final Widget Function(BuildContext, int index) itemBuilder;
+  final Widget Function(BuildContext, int index)? itemBuilder;
 
   /// Elements count
   /// Used in [BottomDrawer.builder]
-  final int itemCount;
+  final int? itemCount;
 
   /// Values needs to be between 0.0 - 1.0. They match percentage of available drawer height
   /// [stops] length needs to be >= 2
@@ -82,7 +82,7 @@ class BottomDrawer extends StatefulWidget {
   final int initialStopIndex;
 
   /// Drawer container border radius
-  final BorderRadius borderRadius;
+  final BorderRadius? borderRadius;
 
   /// Whether drawer should automatically adjust its size when user dragging ends
   /// It will move to the nearest stop in [stops]
@@ -99,35 +99,35 @@ class BottomDrawer extends StatefulWidget {
   final EdgeInsets listViewPadding;
 
   /// Drawer container shadow
-  final BoxShadow shadow;
+  final BoxShadow? shadow;
 
   /// Callback when user starts drag gesture
-  final Function() onDragStart;
+  final Function()? onDragStart;
 
   /// Callback when user releases drag gesture
-  final Function() onDragEnd;
+  final Function()? onDragEnd;
 
   /// Called only if [snap] is set
   /// Callback when snap animation ends.
   /// Returns index from [stops] at which snap ended
-  final Function(int) onSnapEnd;
+  final Function(int)? onSnapEnd;
 
   /// Callback when drawer height changes
   /// Returns height in pixels and in percentage of available drawer space
-  final Function(double height, double heightPerc) onHeightChanged;
+  final Function(double height, double heightPerc)? onHeightChanged;
 
   /// ScrollController for embedded ListView
-  final ScrollController scrollController;
+  final ScrollController? scrollController;
 
   /// Drawer controller
-  final BottomDrawerController controller;
+  final BottomDrawerController? controller;
 
   /// Background color
   final Color backgroundColor;
 
   /// Defines distance from upper part of the drawer which user can hold and drag to force drawer resize
   /// null means user cannot force resize drawer
-  final double forceResizeStartDistance;
+  final double? forceResizeStartDistance;
 
   const BottomDrawer({
     this.children = const [],
@@ -184,29 +184,29 @@ class BottomDrawer extends StatefulWidget {
 }
 
 class _BottomDrawerState extends State<BottomDrawer> with SingleTickerProviderStateMixin {
-  ScrollController _scrollController;
+  late ScrollController _scrollController;
 
   final GlobalKey<_BottomDrawerState> _containerKey = GlobalKey<_BottomDrawerState>();
 
-  double currentHeight;
-  double maxDrawerHeight;
-  double minDrawerHeight;
-  double height;
+  late double currentHeight;
+  late double maxDrawerHeight;
+  late double minDrawerHeight;
+  late double height;
   bool dragging = false;
   bool firstTime = true;
-  double lastHeight;
-  int endSnapStopIndex;
+  late double lastHeight;
+  late int endSnapStopIndex;
   bool controllerActionInProgress = false;
-  Duration controllerActionDuration;
-  Curve controllerActionCurve;
+  late Duration controllerActionDuration;
+  late Curve controllerActionCurve;
   bool _bottomDrawerDraggingInProgress = false;
 
   double currentScrollOffset = 0.0;
-  double startScrollVelocity;
+  late double startScrollVelocity;
   double scrollStartOffset = 0;
 
-  AnimationController _animationController;
-  Animation<double> _animation;
+  AnimationController? _animationController;
+  Animation<double>? _animation;
 
   @override
   void initState() {
@@ -214,7 +214,7 @@ class _BottomDrawerState extends State<BottomDrawer> with SingleTickerProviderSt
     _scrollController = widget.scrollController ?? ScrollController();
     _animationController = AnimationController(vsync: this);
     if (widget.controller != null) {
-      widget.controller.addListener(listenToDrawerController);
+      widget.controller!.addListener(listenToDrawerController);
     }
   }
 
@@ -250,7 +250,7 @@ class _BottomDrawerState extends State<BottomDrawer> with SingleTickerProviderSt
 
       if (lastHeight != currentHeight) {
         lastHeight = currentHeight;
-        if (widget.onHeightChanged != null) widget.onHeightChanged(currentHeight, currentHeight / height);
+        if (widget.onHeightChanged != null) widget.onHeightChanged!(currentHeight, currentHeight / height);
       }
 
       return Align(
@@ -262,7 +262,7 @@ class _BottomDrawerState extends State<BottomDrawer> with SingleTickerProviderSt
               controllerActionInProgress = false;
             }
             if (!dragging && widget.snap && widget.onSnapEnd != null) {
-              widget.onSnapEnd(endSnapStopIndex);
+              widget.onSnapEnd!(endSnapStopIndex);
             }
           },
           curve: controllerActionInProgress ? controllerActionCurve : Curves.linear,
@@ -279,48 +279,48 @@ class _BottomDrawerState extends State<BottomDrawer> with SingleTickerProviderSt
             child: GestureDetector(
               onVerticalDragStart: (details) {
                 controllerActionInProgress = false;
-                _animationController.stop();
-                if (widget.onDragStart != null) widget.onDragStart();
+                _animationController?.stop();
+                if (widget.onDragStart != null) widget.onDragStart!();
                 dragging = true;
-                final box = _containerKey.currentContext.findRenderObject() as RenderBox;
+                final box = _containerKey.currentContext!.findRenderObject() as RenderBox;
                 currentHeight = box.size.height;
-                if (widget.forceResizeStartDistance != null && details.localPosition.dy <= widget.forceResizeStartDistance) {
+                if (widget.forceResizeStartDistance != null && details.localPosition.dy <= widget.forceResizeStartDistance!) {
                   _bottomDrawerDraggingInProgress = true;
                 } else {
                   _bottomDrawerDraggingInProgress = false;
                 }
               },
               onVerticalDragUpdate: (update) {
-                dragUpdate(update.primaryDelta);
+                if (update.primaryDelta != null) dragUpdate(update.primaryDelta!);
               },
               onVerticalDragEnd: (details) {
-                if (widget.onDragEnd != null) widget.onDragEnd();
+                if (widget.onDragEnd != null) widget.onDragEnd!();
                 dragEnd(details);
               },
               child: Container(
                 decoration: BoxDecoration(
                   color: widget.backgroundColor,
                   boxShadow: [
-                    if (widget.shadow != null) widget.shadow,
+                    if (widget.shadow != null) widget.shadow!,
                   ],
                   borderRadius: widget.borderRadius,
                 ),
                 child: Column(
                   children: <Widget>[
-                    if (widget.header != null) widget.header,
+                    if (widget.header != null) widget.header!,
                     Expanded(
                       child: widget.children != null
                           ? ListView(
                               controller: _scrollController,
                               padding: widget.listViewPadding,
                               physics: NeverScrollableScrollPhysics(),
-                              children: widget.children,
+                              children: widget.children!,
                             )
                           : ListView.builder(
                               controller: _scrollController,
                               padding: widget.listViewPadding,
                               physics: NeverScrollableScrollPhysics(),
-                              itemBuilder: widget.itemBuilder,
+                              itemBuilder: widget.itemBuilder!,
                               itemCount: widget.itemCount,
                             ),
                     ),
@@ -335,35 +335,37 @@ class _BottomDrawerState extends State<BottomDrawer> with SingleTickerProviderSt
   }
 
   void listenToDrawerController() async {
-    controllerActionInProgress = true;
-    _BottomDrawerControllerAction lastAction = widget.controller.getLastAction();
-    controllerActionCurve = lastAction.curve;
-    controllerActionDuration = lastAction.duration;
-    switch (lastAction.type) {
-      case _BottomDrawerControllerActionType.collapse:
-        if (lastAction.updateScrollController) {
+    if (widget.controller != null) {
+      controllerActionInProgress = true;
+      _BottomDrawerControllerAction lastAction = widget.controller!.getLastAction();
+      controllerActionCurve = lastAction.curve;
+      controllerActionDuration = lastAction.duration;
+      switch (lastAction.type) {
+        case _BottomDrawerControllerActionType.collapse:
+          if (lastAction.updateScrollController) {
+            _scrollController.animateTo(
+              0,
+              duration: Duration(milliseconds: (controllerActionDuration.inMilliseconds / 2).round()),
+              curve: Curves.linear,
+            );
+          }
+          setState(() {
+            currentHeight = height * widget.stops.first;
+          });
+          break;
+        case _BottomDrawerControllerActionType.expand:
+          setState(() {
+            currentHeight = height * widget.stops.last;
+          });
+          break;
+        case _BottomDrawerControllerActionType.scroll:
           _scrollController.animateTo(
-            0,
+            lastAction.position,
             duration: Duration(milliseconds: (controllerActionDuration.inMilliseconds / 2).round()),
             curve: Curves.linear,
           );
-        }
-        setState(() {
-          currentHeight = height * widget.stops.first;
-        });
-        break;
-      case _BottomDrawerControllerActionType.expand:
-        setState(() {
-          currentHeight = height * widget.stops.last;
-        });
-        break;
-      case _BottomDrawerControllerActionType.scroll:
-        _scrollController.animateTo(
-          lastAction.position,
-          duration: Duration(milliseconds: (controllerActionDuration.inMilliseconds / 2).round()),
-          curve: Curves.linear,
-        );
-        break;
+          break;
+      }
     }
   }
 
@@ -399,7 +401,7 @@ class _BottomDrawerState extends State<BottomDrawer> with SingleTickerProviderSt
   void dragEnd(DragEndDetails details) {
     dragging = false;
     if (widget.snap == true) {
-      double endStop;
+      double? endStop;
       double lastStop = widget.stops.first;
       for (double stop in widget.stops) {
         if (lastStop == stop) continue;
@@ -415,19 +417,20 @@ class _BottomDrawerState extends State<BottomDrawer> with SingleTickerProviderSt
           lastStop = stop;
         }
       }
-
-      if (!_bottomDrawerDraggingInProgress && isAtMax()) {
-        if (details.primaryVelocity != 0) {
-          startScrollAnimation(details);
+      if (endStop != null) {
+        if (!_bottomDrawerDraggingInProgress && isAtMax()) {
+          if (details.primaryVelocity != 0) {
+            startScrollAnimation(details);
+          }
+          if (widget.onSnapEnd != null) widget.onSnapEnd!(widget.stops.indexOf(endStop));
+        } else if (isAtMin()) {
+          if (widget.onSnapEnd != null) widget.onSnapEnd!(widget.stops.indexOf(endStop));
+        } else {
+          endSnapStopIndex = widget.stops.indexOf(endStop);
+          setState(() {
+            currentHeight = height * endStop!;
+          });
         }
-        if (widget.onSnapEnd != null) widget.onSnapEnd(widget.stops.indexOf(endStop));
-      } else if (isAtMin()) {
-        if (widget.onSnapEnd != null) widget.onSnapEnd(widget.stops.indexOf(endStop));
-      } else {
-        endSnapStopIndex = widget.stops.indexOf(endStop);
-        setState(() {
-          currentHeight = height * endStop;
-        });
       }
     }
   }
@@ -465,26 +468,28 @@ class _BottomDrawerState extends State<BottomDrawer> with SingleTickerProviderSt
 
   // triggers scroll animation based on drag velocity after drag end event
   void startScrollAnimation(DragEndDetails details) {
-    double duration = calculateScrollDuration(details.primaryVelocity);
+    double duration = calculateScrollDuration(details.primaryVelocity ?? 0);
     int durationInMilliseconds = (duration * 1000).round();
-    startScrollVelocity = details.primaryVelocity;
+    startScrollVelocity = details.primaryVelocity ?? 0;
     scrollStartOffset = _scrollController.offset;
 
-    _animationController.reset();
-    _animationController.duration = Duration(milliseconds: durationInMilliseconds);
-    _animation?.removeListener(listenToAnimation);
-    _animation = Tween<double>(
-      begin: 0,
-      end: durationInMilliseconds.toDouble(),
-    ).animate(_animationController);
-    _animationController.forward();
-    _animation.addListener(listenToAnimation);
+    if (_animationController != null) {
+      _animationController!.reset();
+      _animationController!.duration = Duration(milliseconds: durationInMilliseconds);
+      _animation?.removeListener(listenToAnimation);
+      _animation = Tween<double>(
+        begin: 0,
+        end: durationInMilliseconds.toDouble(),
+      ).animate(_animationController!);
+      _animationController!.forward();
+      _animation?.addListener(listenToAnimation);
+    }
   }
 
   void listenToAnimation() {
-    double currentOffset = calculateCurrentScrollValue(_animation.value, scrollStartOffset, -startScrollVelocity);
+    double currentOffset = calculateCurrentScrollValue(_animation?.value ?? 0, scrollStartOffset, -startScrollVelocity);
     if (_scrollController.position.outOfRange) {
-      _animationController.stop();
+      _animationController?.stop();
       return;
     }
     _scrollController.jumpTo(currentOffset);
